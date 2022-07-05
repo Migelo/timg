@@ -54,6 +54,12 @@ jobs:
           cmake .. -DWITH_VIDEO_DECODING=On -DWITH_VIDEO_DEVICE=On -DWITH_OPENSLIDE_SUPPORT=On -DWITH_STB_IMAGE=On -DBUILD_SHARED_LIBS=OFF
           make -k
 
+      - uses: actions/upload-artifact@v3
+        with:
+          name: timg_arm64
+          path: /workspaces/timg/build/src/timg
+
+
   CodeFormatting:
     if: false   # currently, there is no clang-format-13 in ubuntu latest
     runs-on: ubuntu-latest

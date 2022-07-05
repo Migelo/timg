@@ -57,7 +57,7 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           name: timg_arm64
-          path: /workspaces/timg/build/src/timg
+          path: /home/runner/work/timg/timg/build/src/timg
 
 
   CodeFormatting:

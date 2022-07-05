@@ -17,6 +17,7 @@ jobs:
 
     name: Build ${{matrix.compiler}}
     steps:
+      - uses: pguyot/arm-runner-action@v2
       - name: Install minimal dependencies
         run: |
           sudo apt install cmake git g++ clang pkg-config libswscale-dev libavutil-dev

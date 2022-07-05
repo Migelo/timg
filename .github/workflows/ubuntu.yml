@@ -52,7 +52,7 @@ jobs:
           cd build
           cmake .. -DWITH_VIDEO_DECODING=On -DWITH_VIDEO_DEVICE=On -DWITH_OPENSLIDE_SUPPORT=On -DWITH_STB_IMAGE=On -DBUILD_SHARED_LIBS=OFF
           make -k
-  build-and-test:
+  build-and-test-arm64:
     runs-on: ubuntu-latest
     - uses: pguyot/arm-runner-action@v2
 

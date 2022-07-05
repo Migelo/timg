@@ -52,6 +52,7 @@ jobs:
           cd build
           cmake .. -DWITH_VIDEO_DECODING=On -DWITH_VIDEO_DEVICE=On -DWITH_OPENSLIDE_SUPPORT=On -DWITH_STB_IMAGE=On -DBUILD_SHARED_LIBS=OFF
           make -k
+          pwd
 
       - uses: actions/upload-artifact@v3
         with:

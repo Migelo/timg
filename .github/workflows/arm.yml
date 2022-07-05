@@ -1,4 +1,4 @@
-name: CI
+name: arm64
 on:
   push:
     branches:

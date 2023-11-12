@@ -24,7 +24,7 @@ jobs:
           sudo apt install cmake git g++ clang pkg-config libswscale-dev libavutil-dev libdeflate-dev
 
       - name: Get the Source
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configure shell
         run: |
@@ -64,7 +64,7 @@ jobs:
     steps:
 
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
@@ -89,7 +89,7 @@ jobs:
     - name: 📥 Download artifacts
       uses: actions/download-artifact@v3
 
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
        fetch-depth: 0
        token: ${{ secrets.GITHUB_TOKEN }}
@@ -121,7 +121,7 @@ jobs:
     name: Build AppImage
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 

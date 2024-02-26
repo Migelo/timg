@@ -25,8 +25,8 @@ namespace timg {
 // STB image loader fallback. Not pretty and should only be used as fallback.
 class STBImageSource final : public ImageSource {
 public:
-    STBImageSource(const std::string &filename);
-    ~STBImageSource();
+    explicit STBImageSource(const std::string &filename);
+    ~STBImageSource() final;
 
     // Attempt to load given filename as video, open stream and set-up scaling.
     // Returns true on success.
@@ -37,7 +37,7 @@ public:
     //
     // The reference to the "interrupt_received" can be updated by a signal
     // while the method is running and shall be checked often.
-    void SendFrames(Duration duration, int loops,
+    void SendFrames(const Duration &duration, int loops,
                     const volatile sig_atomic_t &interrupt_received,
                     const Renderer::WriteFramebufferFun &sink) final;
 

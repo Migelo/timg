@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(timg VERSION 1.4.3 LANGUAGES CXX)
+project(timg VERSION 1.4.4 LANGUAGES CXX)
 
 option(WITH_VIDEO_DECODING "Enables video decoding feature" ON)
 option(WITH_VIDEO_DEVICE "Enables reading videos from devices e.g. v4l2 (requires WITH_VIDEO_DECODING)" ON)
@@ -17,6 +17,7 @@ option(WITH_STB_IMAGE "Use STB image, a self-contained albeit limited image load
 # Note: The version string can be ammended with -DDISTRIBUTION_VERSION, see src/timg-version.h.in
 option(TIMG_VERSION_FROM_GIT "Get the program version from the git repository" ON)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 include(FindPkgConfig)

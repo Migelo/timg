@@ -44,7 +44,7 @@ static void dummy_log(void *, int, const char *, va_list) {}
 
 // Scoped clean-up of c objects.
 struct ScopeGuard {
-    ScopeGuard(std::function<void()> f) : f_(f) {}
+    explicit ScopeGuard(const std::function<void()> &f) : f_(f) {}
     ~ScopeGuard() { f_(); }
     std::function<void()> f_;
 };
@@ -87,8 +87,8 @@ bool OpenSlideSource::LoadAndScale(const DisplayOptions &opts, int, int) {
                           &target_width, &target_height);
 
     // First check if there's a thumbnail with enough resolution.
-    for (auto it = openslide_get_associated_image_names(osr); *it; ++it) {
-        const char *name = *it;
+    for (const auto *n = openslide_get_associated_image_names(osr); *n; ++n) {
+        const char *const name = *n;
         if (strcmp(name, "thumbnail") != 0)
             continue;  // Only interested in thumbnail.
 
@@ -139,12 +139,13 @@ bool OpenSlideSource::LoadAndScale(const DisplayOptions &opts, int, int) {
     return true;
 }
 
-int OpenSlideSource::IndentationIfCentered(timg::Framebuffer &image) const {
+int OpenSlideSource::IndentationIfCentered(
+    const timg::Framebuffer &image) const {
     return options_.center_horizontally ? (options_.width - image.width()) / 2
                                         : 0;
 }
 
-void OpenSlideSource::SendFrames(Duration duration, int loops,
+void OpenSlideSource::SendFrames(const Duration &duration, int loops,
                                  const volatile sig_atomic_t &,
                                  const Renderer::WriteFramebufferFun &sink) {
     sink(IndentationIfCentered(*image_), 0, *image_, SeqType::FrameImmediate,

@@ -1,4 +1,4 @@
-name: x86
+name: arm
 on:
   push:
     branches:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-22.04  # test slightly older ubuntu.
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
@@ -17,6 +17,7 @@ jobs:
 
     name: Build ${{matrix.compiler}}
     steps:
+      - uses: pguyot/arm-runner-action@v2
       - name: Install minimal dependencies
         run: |
           sudo apt update

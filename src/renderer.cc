@@ -19,7 +19,8 @@
 #include <unistd.h>
 
 namespace timg {
-std::string Renderer::TrimTitle(const std::string &title, int requested_width) {
+std::string Renderer::TrimTitle(const std::string &title,
+                                int requested_width) const {
     std::string result = title;
     // Columns can be too narrow. We might need to trim what we print.
     if ((int)result.length() > requested_width) {
@@ -45,7 +46,7 @@ public:
         // For single column mode, implementation is straightforward
         RenderTitle(title);
         return [this](int x, int dy, const Framebuffer &fb, SeqType seq_type,
-                      Duration end_of_frame) {
+                      const Duration &end_of_frame) {
             canvas_->Send(x, dy, fb, seq_type, end_of_frame);
         };
     }
@@ -91,7 +92,7 @@ public:
         PrepareTitle(title);
         first_render_call_ = true;
         return [this](int x, int dy, const Framebuffer &fb, SeqType seq_type,
-                      Duration end_of_frame) {
+                      const Duration &end_of_frame) {
             const int x_offset = current_column_ * column_width_;
             int y_offset;
             if (first_render_call_) {

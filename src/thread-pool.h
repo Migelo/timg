@@ -28,7 +28,7 @@ namespace timg {
 // not with a relevant implementation
 class ThreadPool {
 public:
-    ThreadPool(int count) {
+    explicit ThreadPool(int count) {
         while (count--) {
             threads_.push_back(new std::thread(&ThreadPool::Runner, this));
         }
@@ -36,7 +36,7 @@ public:
 
     ~ThreadPool() {
         CancelAllWork();
-        for (auto t : threads_) {
+        for (std::thread *t : threads_) {
             t->join();
             delete t;
         }

@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -58,7 +58,7 @@ jobs:
           make -k
 
   CodeFormatting:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     steps:
 
@@ -76,7 +76,7 @@ jobs:
 
   TagIfNeeded:
     name: Version Tagging
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     #if: ${{github.event_name == 'push' && github.ref == 'refs/heads/main'}}
     permissions:
       contents: write
@@ -116,7 +116,7 @@ jobs:
 
   AppImageBuild:
     needs: [ TagIfNeeded ]
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     name: Build AppImage
     steps:
       - name: Checkout code
@@ -174,7 +174,7 @@ jobs:
   Release:
     needs: [ AppImageBuild ]
     if: needs.TagIfNeeded.RELEASE_TAG != ''
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     name: Create Release
     steps:
       - name: 🎉 Release If Tagged

@@ -16,6 +16,7 @@ CMAKE_OPTS=(
   -DWITH_RSVG=Off
   -DWITH_POPPLER=Off
   -DWITH_LIBSIXEL=Off
+  -DWITH_STB_IMAGE=On
 )
 
 if command -v x86_64-linux-musl-g++ >/dev/null 2>&1; then
@@ -35,7 +36,9 @@ else
     -w /src \
     alpine:3.20 \
     sh -euxc '
-      apk add --no-cache build-base cmake pkgconf git libdeflate-dev libdeflate-static
+      apk add --no-cache \
+        build-base cmake pkgconf git \
+        libdeflate-dev libdeflate-static
       rm -rf /src/build-musl-static
       cmake -S /src -B /src/build-musl-static '"${CMAKE_OPTS_STR}"'
       cmake --build /src/build-musl-static -j"$(getconf _NPROCESSORS_ONLN)"

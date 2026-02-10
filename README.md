@@ -605,6 +605,35 @@ make
 sudo make install
 ```
 
+#### Build a static musl binary (minimal dependencies)
+
+`timg` can be built as a fully static binary with musl. A helper script is
+included to do this in a reproducible way:
+
+```bash
+./scripts/build-musl-static.sh
+```
+
+What this does:
+
+* Uses `cmake/toolchains/musl-static-minimal.cmake` to force static linking.
+* Builds with a minimal feature set (video, GraphicsMagick, librsvg, poppler,
+  turbojpeg, openslide and libsixel disabled) to avoid requiring many static
+  third-party libraries.
+* If a local musl C++ toolchain is available (`x86_64-linux-musl-g++`), it is
+  used directly. Otherwise, the script builds in an Alpine Docker container.
+
+Resulting binary:
+
+* `build-musl-static/src/timg`
+
+Quick verification:
+
+```bash
+file build-musl-static/src/timg
+ldd build-musl-static/src/timg  # should print "not a dynamic executable"
+```
+
 [24-bit-term]: https://gist.github.com/XVilka/8346728
 [cool-retro-term]: https://github.com/Swordfish90/cool-retro-term
 [konsole]: https://konsole.kde.org/

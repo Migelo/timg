@@ -100,17 +100,22 @@ endif()
 if(WITH_VIDEO_DECODING)
   target_sources(timg PUBLIC video-source.h video-source.cc)
   target_compile_definitions(timg PUBLIC WITH_TIMG_VIDEO)
+  if(NOT LIBAV_PKGCONFIG_FOUND)
+    target_include_directories(timg PRIVATE ${LIBAV_INCLUDE_DIR})
+  endif()
   if(LIBAV_PKGCONFIG_FOUND)
     target_link_libraries(timg
       PkgConfig::LIBAV
       PkgConfig::AVUTIL
-      PkgConfig::SWSCALE)
+      PkgConfig::SWSCALE
+      PkgConfig::SWRESAMPLE)
   else()
     target_link_libraries(timg
       ${LIBAVCODEC_LIBRARY}
       ${LIBAVUTIL_LIBRARY}
       ${LIBAVFORMAT_LIBRARY}
-      ${SWSCALE_LIBRARY})
+      ${SWSCALE_LIBRARY}
+      ${SWRESAMPLE_LIBRARY})
   endif()
   if (WITH_VIDEO_DEVICE)
     if(LIBAV_DEVICE_PKGCONFIG_FOUND)

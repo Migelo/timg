@@ -634,9 +634,8 @@ What this does:
   (requires `WITH_VIDEO=1`).
 * If a local musl C++ toolchain is available (`x86_64-linux-musl-g++`), it is
   used directly. Otherwise, the script builds in an Alpine Docker container.
-* The Alpine Docker fallback can only build `WITH_VIDEO=1` if static ffmpeg
-  archives (`libavcodec.a`, `libavutil.a`, `libavformat.a`, `libswscale.a`)
-  are available in that environment.
+* In the Alpine Docker fallback, `WITH_VIDEO=1` triggers a local static FFmpeg
+  build from source (installed in `/opt/ffmpeg-static` inside the container).
 
 Resulting binary:
 

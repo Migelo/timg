@@ -86,8 +86,8 @@ else
         APK_PKGS="${APK_PKGS} nasm yasm"
       fi
       if [ "${TURBOJPEG_MODE}" != "off" ] && [ "${TURBOJPEG_MODE}" != "OFF" ]; then
-        APK_PKGS="${APK_PKGS} libjpeg-turbo-dev libjpeg-turbo-static libexif-dev"
-        if apk search -x libexif-static >/dev/null 2>&1; then
+        APK_PKGS="${APK_PKGS} autoconf automake gettext gettext-dev libtool libjpeg-turbo-dev libjpeg-turbo-static libexif-dev"
+        if apk search -x libexif-static 2>/dev/null | grep -qE '^libexif-static-[0-9]'; then
           APK_PKGS="${APK_PKGS} libexif-static"
         fi
       fi
@@ -110,6 +110,7 @@ else
         cmake -S /tmp/libjpeg-turbo-src -B /tmp/libjpeg-turbo-build \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_INSTALL_PREFIX="${JPEG_PREFIX}" \
+          -DCMAKE_INSTALL_LIBDIR=lib \
           -DENABLE_SHARED=OFF \
           -DENABLE_STATIC=ON
         cmake --build /tmp/libjpeg-turbo-build -j"$(getconf _NPROCESSORS_ONLN)"
@@ -117,8 +118,8 @@ else
 
         LIBEXIF_TARBALL=/tmp/libexif.tar.xz
         for libexif_url in \
-          https://downloads.sourceforge.net/project/libexif/libexif/0.6.25/libexif-0.6.25.tar.xz \
-          https://sourceforge.net/projects/libexif/files/libexif/0.6.25/libexif-0.6.25.tar.xz/download; do
+          https://deb.debian.org/debian/pool/main/libe/libexif/libexif_0.6.25.orig.tar.gz \
+          https://deb.debian.org/debian/pool/main/libe/libexif/libexif_0.6.24.orig.tar.gz; do
           if wget -qO "${LIBEXIF_TARBALL}" "${libexif_url}"; then
             break
           fi
@@ -127,11 +128,14 @@ else
           echo "Failed to download libexif source tarball." >&2
           exit 2
         fi
-        tar xJf "${LIBEXIF_TARBALL}" -C /tmp/libexif-src --strip-components=1
+        tar xf "${LIBEXIF_TARBALL}" -C /tmp/libexif-src --strip-components=1
+        cd /tmp/libexif-src
+        autoreconf -fi
         cd /tmp/libexif-build
         /tmp/libexif-src/configure \
           --prefix="${JPEG_PREFIX}" \
           --enable-static \
+          --disable-nls \
           --disable-shared
         make -j"$(getconf _NPROCESSORS_ONLN)"
         make install
@@ -247,5 +251,5 @@ echo
 echo "Feature summary:"
 VERSION_OUT="$(mktemp)"
 "${BIN}" --version > "${VERSION_OUT}"
-grep -E '^timg |QOI image loading|STB image loading|JPEG loading|Video decoding|Resize:|libdeflate|sixel output|GraphicsMagick|librsvg|OpenSlide|poppler' "${VERSION_OUT}" || true
+grep -E '^timg |Turbo JPEG|QOI image loading|STB image loading|JPEG loading|Video decoding|Resize:|libdeflate|sixel output|GraphicsMagick|librsvg|OpenSlide|poppler' "${VERSION_OUT}" || true
 rm -f "${VERSION_OUT}"

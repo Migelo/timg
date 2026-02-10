@@ -6,6 +6,7 @@ BUILD_DIR="${BUILD_DIR:-${ROOT_DIR}/build-musl-static}"
 WITH_VIDEO="${WITH_VIDEO:-0}"
 WITH_VIDEO_DEVICE="${WITH_VIDEO_DEVICE:-0}"
 FFMPEG_STATIC_PREFIX="${FFMPEG_STATIC_PREFIX:-/opt/ffmpeg-static}"
+TURBOJPEG_MODE="${TURBOJPEG_MODE:-auto}"
 
 # Keep this build mostly minimal to avoid pulling many static third-party libraries.
 CMAKE_OPTS=(
@@ -13,7 +14,6 @@ CMAKE_OPTS=(
   -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/musl-static-minimal.cmake
   -DWITH_OPENSLIDE_SUPPORT=Off
   -DWITH_GRAPHICSMAGICK=Off
-  -DWITH_TURBOJPEG=Off
   -DWITH_RSVG=Off
   -DWITH_POPPLER=Off
   -DWITH_LIBSIXEL=Off
@@ -33,6 +33,35 @@ else
 fi
 
 if command -v x86_64-linux-musl-g++ >/dev/null 2>&1; then
+  HAS_STATIC_TURBOJPEG=0
+  if find /usr/lib /usr/local/lib -name libturbojpeg.a -print -quit 2>/dev/null | grep -q . \
+    && find /usr/lib /usr/local/lib -name libexif.a -print -quit 2>/dev/null | grep -q .; then
+    HAS_STATIC_TURBOJPEG=1
+  fi
+  case "${TURBOJPEG_MODE}" in
+    on|ON)
+      if [ "${HAS_STATIC_TURBOJPEG}" -ne 1 ]; then
+        echo "TURBOJPEG_MODE=on requested, but static libturbojpeg.a/libexif.a not found" >&2
+        exit 2
+      fi
+      CMAKE_OPTS+=(-DWITH_TURBOJPEG=On)
+      ;;
+    off|OFF)
+      CMAKE_OPTS+=(-DWITH_TURBOJPEG=Off)
+      ;;
+    auto|AUTO)
+      if [ "${HAS_STATIC_TURBOJPEG}" -eq 1 ]; then
+        CMAKE_OPTS+=(-DWITH_TURBOJPEG=On)
+      else
+        CMAKE_OPTS+=(-DWITH_TURBOJPEG=Off)
+      fi
+      ;;
+    *)
+      echo "Invalid TURBOJPEG_MODE='${TURBOJPEG_MODE}'. Use auto|on|off." >&2
+      exit 2
+      ;;
+  esac
+
   echo "Building with local musl toolchain into ${BUILD_DIR}"
   rm -rf "${BUILD_DIR}"
   cmake -S "${ROOT_DIR}" -B "${BUILD_DIR}" "${CMAKE_OPTS[@]}" \
@@ -45,6 +74,7 @@ else
   docker run --rm \
     -e HOST_UID="$(id -u)" \
     -e HOST_GID="$(id -g)" \
+    -e TURBOJPEG_MODE="${TURBOJPEG_MODE}" \
     -v "${ROOT_DIR}":/src \
     -w /src \
     alpine:3.20 \
@@ -53,8 +83,39 @@ else
       if [ "'"${WITH_VIDEO}"'" = "1" ]; then
         APK_PKGS="${APK_PKGS} nasm yasm"
       fi
+      if [ "${TURBOJPEG_MODE}" != "off" ] && [ "${TURBOJPEG_MODE}" != "OFF" ]; then
+        APK_PKGS="${APK_PKGS} libjpeg-turbo-dev libjpeg-turbo-static libexif-dev"
+      fi
       apk add --no-cache \
         ${APK_PKGS}
+
+      HAS_STATIC_TURBOJPEG=0
+      if [ -f /usr/lib/libturbojpeg.a ] && [ -f /usr/lib/libexif.a ]; then
+        HAS_STATIC_TURBOJPEG=1
+      fi
+      case "${TURBOJPEG_MODE}" in
+        on|ON)
+          if [ "${HAS_STATIC_TURBOJPEG}" -ne 1 ]; then
+            echo "TURBOJPEG_MODE=on requested, but static libturbojpeg.a/libexif.a not found" >&2
+            exit 2
+          fi
+          TURBOJPEG_CMAKE_ARG="-DWITH_TURBOJPEG=On"
+          ;;
+        off|OFF)
+          TURBOJPEG_CMAKE_ARG="-DWITH_TURBOJPEG=Off"
+          ;;
+        auto|AUTO)
+          if [ "${HAS_STATIC_TURBOJPEG}" -eq 1 ]; then
+            TURBOJPEG_CMAKE_ARG="-DWITH_TURBOJPEG=On"
+          else
+            TURBOJPEG_CMAKE_ARG="-DWITH_TURBOJPEG=Off"
+          fi
+          ;;
+        *)
+          echo "Invalid TURBOJPEG_MODE=${TURBOJPEG_MODE}. Use auto|on|off." >&2
+          exit 2
+          ;;
+      esac
 
       if [ "'"${WITH_VIDEO}"'" = "1" ]; then
         FFMPEG_PREFIX="'"${FFMPEG_STATIC_PREFIX}"'"
@@ -99,7 +160,7 @@ else
         fi
       fi
       rm -rf /src/build-musl-static
-      cmake -S /src -B /src/build-musl-static '"${CMAKE_OPTS_STR}"'
+      cmake -S /src -B /src/build-musl-static '"${CMAKE_OPTS_STR}"' "${TURBOJPEG_CMAKE_ARG}"
       cmake --build /src/build-musl-static -j"$(getconf _NPROCESSORS_ONLN)"
       chown -R "${HOST_UID}:${HOST_GID}" /src/build-musl-static
     '
@@ -116,3 +177,10 @@ file "${BIN}"
 if command -v ldd >/dev/null 2>&1; then
   ldd "${BIN}" || true
 fi
+
+echo
+echo "Feature summary:"
+VERSION_OUT="$(mktemp)"
+"${BIN}" --version > "${VERSION_OUT}"
+grep -E '^timg |QOI image loading|STB image loading|JPEG loading|Video decoding|Resize:|libdeflate|sixel output|GraphicsMagick|librsvg|OpenSlide|poppler' "${VERSION_OUT}" || true
+rm -f "${VERSION_OUT}"

@@ -620,13 +620,24 @@ Enable video decoding in the static build:
 WITH_VIDEO=1 ./scripts/build-musl-static.sh
 ```
 
+Control turbojpeg mode:
+
+```bash
+# Default: auto-detect static libturbojpeg/libexif and enable when available.
+TURBOJPEG_MODE=auto ./scripts/build-musl-static.sh
+
+# Force on/off.
+TURBOJPEG_MODE=on ./scripts/build-musl-static.sh
+TURBOJPEG_MODE=off ./scripts/build-musl-static.sh
+```
+
 What this does:
 
 * Uses `cmake/toolchains/musl-static-minimal.cmake` to force static linking.
-* Builds with a mostly-minimal feature set and keeps JPEG support enabled via
-  STB (`WITH_STB_IMAGE=On`).
-* If your musl environment provides fully static `libturbojpeg` and `libexif`,
-  you can switch to optimized JPEG decoding with `-DWITH_TURBOJPEG=On`.
+* Builds with a mostly-minimal feature set and keeps JPEG support via STB
+  (`WITH_STB_IMAGE=On`).
+* `TURBOJPEG_MODE=auto` (default) enables optimized JPEG decoding when static
+  `libturbojpeg.a` and `libexif.a` are available.
 * Disables GraphicsMagick, librsvg, poppler, openslide and libsixel to avoid
   requiring many static third-party libraries.
 * Video decoding is off by default; enable it with `WITH_VIDEO=1`.
@@ -640,6 +651,7 @@ What this does:
 Resulting binary:
 
 * `build-musl-static/src/timg`
+* The script also prints a feature summary from `timg --version` after build.
 
 Quick verification:
 

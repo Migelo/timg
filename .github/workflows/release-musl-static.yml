@@ -1,0 +1,86 @@
+name: Release musl static
+
+on:
+  push:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref (tag/branch/SHA) to build"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-musl-static:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Build static musl binary
+        run: |
+          ./scripts/build-musl-static.sh
+          test -x build-musl-static/src/timg
+
+      - name: Set artifact names
+        id: vars
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ -n "${{ inputs.ref }}" ]; then
+              VERSION="${{ inputs.ref }}"
+            else
+              VERSION="$(git describe --tags --always)"
+            fi
+          fi
+          VERSION="$(echo "${VERSION}" | sed 's#[^A-Za-z0-9._-]#-#g')"
+          BASENAME="timg-${VERSION}-linux-x86_64-musl-static"
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "basename=${BASENAME}" >> "${GITHUB_OUTPUT}"
+
+      - name: Install packaging dependency
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zip
+
+      - name: Package artifacts
+        run: |
+          mkdir -p "dist/${{ steps.vars.outputs.basename }}"
+          install -m 0755 build-musl-static/src/timg "dist/${{ steps.vars.outputs.basename }}/timg"
+          tar -C dist -czf "${{ steps.vars.outputs.basename }}.tar.gz" "${{ steps.vars.outputs.basename }}"
+          (
+            cd dist
+            zip -r "../${{ steps.vars.outputs.basename }}.zip" "${{ steps.vars.outputs.basename }}"
+          )
+
+      - name: Generate checksums
+        run: |
+          sha256sum \
+            "${{ steps.vars.outputs.basename }}.tar.gz" \
+            "${{ steps.vars.outputs.basename }}.zip" \
+            > SHA256SUMS
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.vars.outputs.basename }}
+          path: |
+            ${{ steps.vars.outputs.basename }}.tar.gz
+            ${{ steps.vars.outputs.basename }}.zip
+            SHA256SUMS
+
+      - name: Publish GitHub release assets
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ steps.vars.outputs.basename }}.tar.gz
+            ${{ steps.vars.outputs.basename }}.zip
+            SHA256SUMS

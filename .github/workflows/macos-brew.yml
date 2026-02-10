@@ -1,9 +1,7 @@
 
 name: macOS Brew Building HEAD
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
   install_dependencies_and_build:

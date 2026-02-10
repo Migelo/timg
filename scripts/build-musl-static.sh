@@ -7,6 +7,7 @@ WITH_VIDEO="${WITH_VIDEO:-0}"
 WITH_VIDEO_DEVICE="${WITH_VIDEO_DEVICE:-0}"
 FFMPEG_STATIC_PREFIX="${FFMPEG_STATIC_PREFIX:-/opt/ffmpeg-static}"
 TURBOJPEG_MODE="${TURBOJPEG_MODE:-auto}"
+TURBOJPEG_STATIC_PREFIX="${TURBOJPEG_STATIC_PREFIX:-/opt/turbojpeg-static}"
 
 # Keep this build mostly minimal to avoid pulling many static third-party libraries.
 CMAKE_OPTS=(
@@ -75,6 +76,7 @@ else
     -e HOST_UID="$(id -u)" \
     -e HOST_GID="$(id -g)" \
     -e TURBOJPEG_MODE="${TURBOJPEG_MODE}" \
+    -e TURBOJPEG_STATIC_PREFIX="${TURBOJPEG_STATIC_PREFIX}" \
     -v "${ROOT_DIR}":/src \
     -w /src \
     alpine:3.20 \
@@ -85,6 +87,9 @@ else
       fi
       if [ "${TURBOJPEG_MODE}" != "off" ] && [ "${TURBOJPEG_MODE}" != "OFF" ]; then
         APK_PKGS="${APK_PKGS} libjpeg-turbo-dev libjpeg-turbo-static libexif-dev"
+        if apk search -x libexif-static >/dev/null 2>&1; then
+          APK_PKGS="${APK_PKGS} libexif-static"
+        fi
       fi
       apk add --no-cache \
         ${APK_PKGS}
@@ -92,6 +97,49 @@ else
       HAS_STATIC_TURBOJPEG=0
       if [ -f /usr/lib/libturbojpeg.a ] && [ -f /usr/lib/libexif.a ]; then
         HAS_STATIC_TURBOJPEG=1
+      fi
+
+      JPEG_PREFIX="${TURBOJPEG_STATIC_PREFIX}"
+      if [ "${TURBOJPEG_MODE}" != "off" ] && [ "${TURBOJPEG_MODE}" != "OFF" ] && [ "${HAS_STATIC_TURBOJPEG}" -ne 1 ]; then
+        echo "Building static turbojpeg/exif dependencies into ${JPEG_PREFIX}"
+        rm -rf "${JPEG_PREFIX}" /tmp/libjpeg-turbo-src /tmp/libjpeg-turbo-build /tmp/libexif-src /tmp/libexif-build
+        mkdir -p "${JPEG_PREFIX}" /tmp/libjpeg-turbo-src /tmp/libjpeg-turbo-build /tmp/libexif-src /tmp/libexif-build
+
+        wget -qO- https://github.com/libjpeg-turbo/libjpeg-turbo/archive/refs/tags/3.0.3.tar.gz \
+          | tar xz -C /tmp/libjpeg-turbo-src --strip-components=1
+        cmake -S /tmp/libjpeg-turbo-src -B /tmp/libjpeg-turbo-build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_INSTALL_PREFIX="${JPEG_PREFIX}" \
+          -DENABLE_SHARED=OFF \
+          -DENABLE_STATIC=ON
+        cmake --build /tmp/libjpeg-turbo-build -j"$(getconf _NPROCESSORS_ONLN)"
+        cmake --install /tmp/libjpeg-turbo-build
+
+        LIBEXIF_TARBALL=/tmp/libexif.tar.xz
+        for libexif_url in \
+          https://downloads.sourceforge.net/project/libexif/libexif/0.6.25/libexif-0.6.25.tar.xz \
+          https://sourceforge.net/projects/libexif/files/libexif/0.6.25/libexif-0.6.25.tar.xz/download; do
+          if wget -qO "${LIBEXIF_TARBALL}" "${libexif_url}"; then
+            break
+          fi
+        done
+        if [ ! -s "${LIBEXIF_TARBALL}" ]; then
+          echo "Failed to download libexif source tarball." >&2
+          exit 2
+        fi
+        tar xJf "${LIBEXIF_TARBALL}" -C /tmp/libexif-src --strip-components=1
+        cd /tmp/libexif-build
+        /tmp/libexif-src/configure \
+          --prefix="${JPEG_PREFIX}" \
+          --enable-static \
+          --disable-shared
+        make -j"$(getconf _NPROCESSORS_ONLN)"
+        make install
+        cd /src
+
+        if [ -f "${JPEG_PREFIX}/lib/libturbojpeg.a" ] && [ -f "${JPEG_PREFIX}/lib/libexif.a" ]; then
+          HAS_STATIC_TURBOJPEG=1
+        fi
       fi
       case "${TURBOJPEG_MODE}" in
         on|ON)
@@ -116,6 +164,18 @@ else
           exit 2
           ;;
       esac
+
+      CMAKE_PREFIX_PATH_VALUE=""
+      if [ "'"${WITH_VIDEO}"'" = "1" ]; then
+        CMAKE_PREFIX_PATH_VALUE="'"${FFMPEG_STATIC_PREFIX}"'"
+      fi
+      if [ "${HAS_STATIC_TURBOJPEG}" -eq 1 ]; then
+        if [ -n "${CMAKE_PREFIX_PATH_VALUE}" ]; then
+          CMAKE_PREFIX_PATH_VALUE="${CMAKE_PREFIX_PATH_VALUE};${JPEG_PREFIX}"
+        else
+          CMAKE_PREFIX_PATH_VALUE="${JPEG_PREFIX}"
+        fi
+      fi
 
       if [ "'"${WITH_VIDEO}"'" = "1" ]; then
         FFMPEG_PREFIX="'"${FFMPEG_STATIC_PREFIX}"'"
@@ -160,7 +220,12 @@ else
         fi
       fi
       rm -rf /src/build-musl-static
-      cmake -S /src -B /src/build-musl-static '"${CMAKE_OPTS_STR}"' "${TURBOJPEG_CMAKE_ARG}"
+      if [ -n "${CMAKE_PREFIX_PATH_VALUE}" ]; then
+        CMAKE_PREFIX_PATH_ARG="-DCMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH_VALUE}"
+        cmake -S /src -B /src/build-musl-static '"${CMAKE_OPTS_STR}"' "${TURBOJPEG_CMAKE_ARG}" "${CMAKE_PREFIX_PATH_ARG}"
+      else
+        cmake -S /src -B /src/build-musl-static '"${CMAKE_OPTS_STR}"' "${TURBOJPEG_CMAKE_ARG}"
+      fi
       cmake --build /src/build-musl-static -j"$(getconf _NPROCESSORS_ONLN)"
       chown -R "${HOST_UID}:${HOST_GID}" /src/build-musl-static
     '

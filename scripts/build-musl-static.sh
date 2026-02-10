@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="${BUILD_DIR:-${ROOT_DIR}/build-musl-static}"
 WITH_VIDEO="${WITH_VIDEO:-0}"
 WITH_VIDEO_DEVICE="${WITH_VIDEO_DEVICE:-0}"
+FFMPEG_STATIC_PREFIX="${FFMPEG_STATIC_PREFIX:-/opt/ffmpeg-static}"
 
 # Keep this build mostly minimal to avoid pulling many static third-party libraries.
 CMAKE_OPTS=(
@@ -21,6 +22,7 @@ CMAKE_OPTS=(
 
 if [ "${WITH_VIDEO}" = "1" ]; then
   CMAKE_OPTS+=(-DWITH_VIDEO_DECODING=On)
+  CMAKE_OPTS+=(-DCMAKE_PREFIX_PATH="${FFMPEG_STATIC_PREFIX}")
   if [ "${WITH_VIDEO_DEVICE}" = "1" ]; then
     CMAKE_OPTS+=(-DWITH_VIDEO_DEVICE=On)
   else
@@ -49,20 +51,52 @@ else
     sh -euxc '
       APK_PKGS="build-base cmake pkgconf git libdeflate-dev libdeflate-static"
       if [ "'"${WITH_VIDEO}"'" = "1" ]; then
-        APK_PKGS="${APK_PKGS} ffmpeg-dev"
+        APK_PKGS="${APK_PKGS} nasm yasm"
       fi
       apk add --no-cache \
         ${APK_PKGS}
 
       if [ "'"${WITH_VIDEO}"'" = "1" ]; then
-        for lib in /usr/lib/libavcodec.a /usr/lib/libavutil.a /usr/lib/libavformat.a /usr/lib/libswscale.a; do
+        FFMPEG_PREFIX="'"${FFMPEG_STATIC_PREFIX}"'"
+        rm -rf /tmp/ffmpeg-src "${FFMPEG_PREFIX}"
+        git clone --depth=1 --branch n6.1.1 https://github.com/FFmpeg/FFmpeg.git /tmp/ffmpeg-src
+        cd /tmp/ffmpeg-src
+        if [ "'"${WITH_VIDEO_DEVICE}"'" = "1" ]; then
+          VIDEO_DEVICE_ARG="--enable-avdevice"
+        else
+          VIDEO_DEVICE_ARG="--disable-avdevice"
+        fi
+        ./configure \
+          --prefix="${FFMPEG_PREFIX}" \
+          --enable-static \
+          --disable-shared \
+          --disable-programs \
+          --disable-doc \
+          --disable-debug \
+          --disable-network \
+          --disable-postproc \
+          --disable-avfilter \
+          --disable-autodetect \
+          ${VIDEO_DEVICE_ARG}
+        make -j"$(getconf _NPROCESSORS_ONLN)"
+        make install
+        cd /src
+
+        for lib in \
+          "${FFMPEG_PREFIX}/lib/libavcodec.a" \
+          "${FFMPEG_PREFIX}/lib/libavutil.a" \
+          "${FFMPEG_PREFIX}/lib/libavformat.a" \
+          "${FFMPEG_PREFIX}/lib/libswscale.a"; do
           if [ ! -f "${lib}" ]; then
             echo "Missing static FFmpeg library: ${lib}" >&2
-            echo "This Alpine setup cannot produce a fully static musl build with video enabled." >&2
-            echo "Build on a musl toolchain that provides static ffmpeg archives, or set WITH_VIDEO=0." >&2
+            echo "Failed to build static FFmpeg archives needed for video support." >&2
             exit 2
           fi
         done
+        if [ "'"${WITH_VIDEO_DEVICE}"'" = "1" ] && [ ! -f "${FFMPEG_PREFIX}/lib/libavdevice.a" ]; then
+          echo "Missing static FFmpeg library: ${FFMPEG_PREFIX}/lib/libavdevice.a" >&2
+          exit 2
+        fi
       fi
       rm -rf /src/build-musl-static
       cmake -S /src -B /src/build-musl-static '"${CMAKE_OPTS_STR}"'

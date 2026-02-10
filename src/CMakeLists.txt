@@ -100,12 +100,24 @@ endif()
 if(WITH_VIDEO_DECODING)
   target_sources(timg PUBLIC video-source.h video-source.cc)
   target_compile_definitions(timg PUBLIC WITH_TIMG_VIDEO)
-  target_link_libraries(timg
-    PkgConfig::LIBAV
-    PkgConfig::AVUTIL
-    PkgConfig::SWSCALE)
+  if(LIBAV_PKGCONFIG_FOUND)
+    target_link_libraries(timg
+      PkgConfig::LIBAV
+      PkgConfig::AVUTIL
+      PkgConfig::SWSCALE)
+  else()
+    target_link_libraries(timg
+      ${LIBAVCODEC_LIBRARY}
+      ${LIBAVUTIL_LIBRARY}
+      ${LIBAVFORMAT_LIBRARY}
+      ${SWSCALE_LIBRARY})
+  endif()
   if (WITH_VIDEO_DEVICE)
-    target_link_libraries(timg PkgConfig::LIBAV_DEVICE)
+    if(LIBAV_DEVICE_PKGCONFIG_FOUND)
+      target_link_libraries(timg PkgConfig::LIBAV_DEVICE)
+    else()
+      target_link_libraries(timg ${LIBAVDEVICE_LIBRARY})
+    endif()
     add_definitions(-DHAVE_AVDEVICE)
   endif()
   set(SHOULD_SCALE_SWS ON)  # we link it anyway
@@ -126,9 +138,15 @@ endif()
 
 # TODO: for scaling, there is also zimg to explore
 if(SHOULD_SCALE_SWS)
-  target_link_libraries(timg
-    PkgConfig::AVUTIL
-    PkgConfig::SWSCALE)
+  if(AVUTIL_PKGCONFIG_FOUND AND SWSCALE_PKGCONFIG_FOUND)
+    target_link_libraries(timg
+      PkgConfig::AVUTIL
+      PkgConfig::SWSCALE)
+  else()
+    target_link_libraries(timg
+      ${LIBAVUTIL_LIBRARY}
+      ${SWSCALE_LIBRARY})
+  endif()
   target_compile_definitions(timg PUBLIC WITH_TIMG_SWS_RESIZE)
 else()
   CHECK_INCLUDE_FILE_CXX(stb/stb_image_resize2.h HAVE_SYSTEM_STB_RESIZE2)

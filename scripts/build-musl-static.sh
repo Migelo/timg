@@ -3,13 +3,13 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="${BUILD_DIR:-${ROOT_DIR}/build-musl-static}"
+WITH_VIDEO="${WITH_VIDEO:-0}"
+WITH_VIDEO_DEVICE="${WITH_VIDEO_DEVICE:-0}"
 
-# Keep this build minimal to avoid pulling many static third-party libraries.
+# Keep this build mostly minimal to avoid pulling many static third-party libraries.
 CMAKE_OPTS=(
   -DCMAKE_BUILD_TYPE=Release
   -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/musl-static-minimal.cmake
-  -DWITH_VIDEO_DECODING=Off
-  -DWITH_VIDEO_DEVICE=Off
   -DWITH_OPENSLIDE_SUPPORT=Off
   -DWITH_GRAPHICSMAGICK=Off
   -DWITH_TURBOJPEG=Off
@@ -18,6 +18,17 @@ CMAKE_OPTS=(
   -DWITH_LIBSIXEL=Off
   -DWITH_STB_IMAGE=On
 )
+
+if [ "${WITH_VIDEO}" = "1" ]; then
+  CMAKE_OPTS+=(-DWITH_VIDEO_DECODING=On)
+  if [ "${WITH_VIDEO_DEVICE}" = "1" ]; then
+    CMAKE_OPTS+=(-DWITH_VIDEO_DEVICE=On)
+  else
+    CMAKE_OPTS+=(-DWITH_VIDEO_DEVICE=Off)
+  fi
+else
+  CMAKE_OPTS+=(-DWITH_VIDEO_DECODING=Off -DWITH_VIDEO_DEVICE=Off)
+fi
 
 if command -v x86_64-linux-musl-g++ >/dev/null 2>&1; then
   echo "Building with local musl toolchain into ${BUILD_DIR}"
@@ -36,9 +47,23 @@ else
     -w /src \
     alpine:3.20 \
     sh -euxc '
+      APK_PKGS="build-base cmake pkgconf git libdeflate-dev libdeflate-static"
+      if [ "'"${WITH_VIDEO}"'" = "1" ]; then
+        APK_PKGS="${APK_PKGS} ffmpeg-dev"
+      fi
       apk add --no-cache \
-        build-base cmake pkgconf git \
-        libdeflate-dev libdeflate-static
+        ${APK_PKGS}
+
+      if [ "'"${WITH_VIDEO}"'" = "1" ]; then
+        for lib in /usr/lib/libavcodec.a /usr/lib/libavutil.a /usr/lib/libavformat.a /usr/lib/libswscale.a; do
+          if [ ! -f "${lib}" ]; then
+            echo "Missing static FFmpeg library: ${lib}" >&2
+            echo "This Alpine setup cannot produce a fully static musl build with video enabled." >&2
+            echo "Build on a musl toolchain that provides static ffmpeg archives, or set WITH_VIDEO=0." >&2
+            exit 2
+          fi
+        done
+      fi
       rm -rf /src/build-musl-static
       cmake -S /src -B /src/build-musl-static '"${CMAKE_OPTS_STR}"'
       cmake --build /src/build-musl-static -j"$(getconf _NPROCESSORS_ONLN)"

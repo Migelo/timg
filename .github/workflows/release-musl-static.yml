@@ -25,8 +25,12 @@ jobs:
 
       - name: Build static musl binary
         run: |
-          WITH_VIDEO=1 WITH_VIDEO_DEVICE=1 ./scripts/build-musl-static.sh
+          TURBOJPEG_MODE=on WITH_VIDEO=1 WITH_VIDEO_DEVICE=1 ./scripts/build-musl-static.sh
           test -x build-musl-static/src/timg
+          VERSION_OUT="$(build-musl-static/src/timg --version)"
+          echo "${VERSION_OUT}"
+          echo "${VERSION_OUT}" | grep -q "Turbo JPEG"
+          echo "${VERSION_OUT}" | grep -q "Video decoding"
 
       - name: Set artifact names
         id: vars

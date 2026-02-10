@@ -617,9 +617,12 @@ included to do this in a reproducible way:
 What this does:
 
 * Uses `cmake/toolchains/musl-static-minimal.cmake` to force static linking.
-* Builds with a minimal feature set (video, GraphicsMagick, librsvg, poppler,
-  turbojpeg, openslide and libsixel disabled) to avoid requiring many static
-  third-party libraries.
+* Builds with a mostly-minimal feature set and keeps JPEG support enabled via
+  STB (`WITH_STB_IMAGE=On`).
+* If your musl environment provides fully static `libturbojpeg` and `libexif`,
+  you can switch to optimized JPEG decoding with `-DWITH_TURBOJPEG=On`.
+* Disables video, GraphicsMagick, librsvg, poppler, openslide and libsixel to
+  avoid requiring many static third-party libraries.
 * If a local musl C++ toolchain is available (`x86_64-linux-musl-g++`), it is
   used directly. Otherwise, the script builds in an Alpine Docker container.
 

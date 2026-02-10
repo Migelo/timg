@@ -34,10 +34,21 @@ if(TIMG_VERSION_FROM_GIT)
   include(GetGitRevisionDescription)
 endif()
 
-# Ubuntu 20.04 does not provide pkg-config, so use find_library() as fallback
-pkg_check_modules(LIBDEFLATE_PKGCONFIG IMPORTED_TARGET libdeflate)
-if (NOT LIBDEFLATE_PKGCONFIG_FOUND)
-  find_library(LIBDEFLATE_LIBRARY NAMES deflate)
+# Ubuntu 20.04 does not provide pkg-config, so use find_library() as fallback.
+# For static builds, prefer find_library() to avoid pkg-config picking a shared
+# object when both static and shared variants are installed.
+if(PKG_CONFIG_USE_STATIC_LIBS)
+  set(LIBDEFLATE_PKGCONFIG_FOUND OFF)
+else()
+  pkg_check_modules(LIBDEFLATE_PKGCONFIG IMPORTED_TARGET libdeflate)
+endif()
+
+if(NOT LIBDEFLATE_PKGCONFIG_FOUND)
+  if(PKG_CONFIG_USE_STATIC_LIBS)
+    find_library(LIBDEFLATE_LIBRARY NAMES libdeflate.a deflate.a)
+  else()
+    find_library(LIBDEFLATE_LIBRARY NAMES deflate)
+  endif()
   message("Manual libdeflate lookup ${LIBDEFLATE_LIBRARY}")
 endif()
 

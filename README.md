@@ -614,6 +614,12 @@ included to do this in a reproducible way:
 ./scripts/build-musl-static.sh
 ```
 
+Enable video decoding in the static build:
+
+```bash
+WITH_VIDEO=1 ./scripts/build-musl-static.sh
+```
+
 What this does:
 
 * Uses `cmake/toolchains/musl-static-minimal.cmake` to force static linking.
@@ -621,10 +627,16 @@ What this does:
   STB (`WITH_STB_IMAGE=On`).
 * If your musl environment provides fully static `libturbojpeg` and `libexif`,
   you can switch to optimized JPEG decoding with `-DWITH_TURBOJPEG=On`.
-* Disables video, GraphicsMagick, librsvg, poppler, openslide and libsixel to
-  avoid requiring many static third-party libraries.
+* Disables GraphicsMagick, librsvg, poppler, openslide and libsixel to avoid
+  requiring many static third-party libraries.
+* Video decoding is off by default; enable it with `WITH_VIDEO=1`.
+* Optional video-device support can be enabled with `WITH_VIDEO_DEVICE=1`
+  (requires `WITH_VIDEO=1`).
 * If a local musl C++ toolchain is available (`x86_64-linux-musl-g++`), it is
   used directly. Otherwise, the script builds in an Alpine Docker container.
+* The Alpine Docker fallback can only build `WITH_VIDEO=1` if static ffmpeg
+  archives (`libavcodec.a`, `libavutil.a`, `libavformat.a`, `libswscale.a`)
+  are available in that environment.
 
 Resulting binary:
 

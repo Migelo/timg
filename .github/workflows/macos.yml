@@ -19,7 +19,7 @@ jobs:
           brew install pandoc
 
       - name: Get the Source
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
 
       - name: Build timg
         run: |

@@ -24,7 +24,7 @@ jobs:
           sudo apt install cmake git g++ clang pkg-config libdeflate-dev
 
       - name: Get the Source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Configure shell
         run: |
@@ -74,7 +74,7 @@ jobs:
     steps:
 
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         fetch-depth: 0
 
@@ -96,7 +96,7 @@ jobs:
       release_tag: ${{ steps.do_tag.outputs.RELEASE_TAG }}
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
        fetch-depth: 0
        token: ${{ secrets.GITHUB_TOKEN }}
@@ -128,7 +128,7 @@ jobs:
     name: Build AppImage
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 

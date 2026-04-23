@@ -33,7 +33,14 @@ else
   CMAKE_OPTS+=(-DWITH_VIDEO_DECODING=Off -DWITH_VIDEO_DEVICE=Off)
 fi
 
-if command -v x86_64-linux-musl-g++ >/dev/null 2>&1; then
+# Optional: set DOCKER_PLATFORM to cross-build (e.g. linux/arm64).
+DOCKER_PLATFORM="${DOCKER_PLATFORM:-}"
+DOCKER_PLATFORM_ARGS=()
+if [ -n "${DOCKER_PLATFORM}" ]; then
+  DOCKER_PLATFORM_ARGS=(--platform "${DOCKER_PLATFORM}")
+fi
+
+if [ -z "${DOCKER_PLATFORM}" ] && command -v x86_64-linux-musl-g++ >/dev/null 2>&1; then
   HAS_STATIC_TURBOJPEG=0
   if find /usr/lib /usr/local/lib -name libturbojpeg.a -print -quit 2>/dev/null | grep -q . \
     && find /usr/lib /usr/local/lib -name libexif.a -print -quit 2>/dev/null | grep -q .; then
@@ -70,9 +77,10 @@ if command -v x86_64-linux-musl-g++ >/dev/null 2>&1; then
     -DCMAKE_CXX_COMPILER=x86_64-linux-musl-g++
   cmake --build "${BUILD_DIR}" -j"$(nproc)"
 else
-  echo "x86_64-linux-musl-g++ not found; building in Alpine Docker instead"
+  echo "Building in Alpine Docker${DOCKER_PLATFORM:+ (platform: ${DOCKER_PLATFORM})}"
   CMAKE_OPTS_STR="$(printf '%q ' "${CMAKE_OPTS[@]}")"
   docker run --rm \
+    "${DOCKER_PLATFORM_ARGS[@]}" \
     -e HOST_UID="$(id -u)" \
     -e HOST_GID="$(id -g)" \
     -e TURBOJPEG_MODE="${TURBOJPEG_MODE}" \
@@ -247,9 +255,16 @@ if command -v ldd >/dev/null 2>&1; then
   ldd "${BIN}" || true
 fi
 
-echo
-echo "Feature summary:"
-VERSION_OUT="$(mktemp)"
-"${BIN}" --version > "${VERSION_OUT}"
-grep -E '^timg |Turbo JPEG|QOI image loading|STB image loading|JPEG loading|Video decoding|Resize:|libdeflate|sixel output|GraphicsMagick|librsvg|OpenSlide|poppler' "${VERSION_OUT}" || true
-rm -f "${VERSION_OUT}"
+# Only run the binary for feature summary if it's executable on this host.
+# Cross-compiled binaries (e.g. ARM on x86_64) can't run natively.
+if "${BIN}" --version > /dev/null 2>&1; then
+  echo
+  echo "Feature summary:"
+  VERSION_OUT="$(mktemp)"
+  "${BIN}" --version > "${VERSION_OUT}"
+  grep -E '^timg |Turbo JPEG|QOI image loading|STB image loading|JPEG loading|Video decoding|Resize:|libdeflate|sixel output|GraphicsMagick|librsvg|OpenSlide|poppler' "${VERSION_OUT}" || true
+  rm -f "${VERSION_OUT}"
+else
+  echo
+  echo "Cross-compiled binary; skipping feature summary."
+fi

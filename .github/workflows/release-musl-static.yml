@@ -25,6 +25,16 @@ permissions:
 jobs:
   build-musl-static:
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            docker_platform: linux/amd64
+          - arch: aarch64
+            docker_platform: linux/arm64
+
+    name: Build ${{ matrix.arch }}
 
     steps:
       - name: Checkout code
@@ -33,14 +43,28 @@ jobs:
           fetch-depth: 0
           ref: ${{ inputs.ref || github.ref }}
 
+      - name: Set up QEMU
+        if: matrix.arch != 'x86_64'
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: ${{ matrix.docker_platform }}
+
       - name: Build static musl binary
         run: |
-          TURBOJPEG_MODE=on WITH_VIDEO=1 WITH_VIDEO_DEVICE=1 ./scripts/build-musl-static.sh
+          DOCKER_PLATFORM=${{ matrix.docker_platform }} \
+          TURBOJPEG_MODE=on \
+          WITH_VIDEO=1 \
+          WITH_VIDEO_DEVICE=1 \
+            ./scripts/build-musl-static.sh
           test -x build-musl-static/src/timg
-          VERSION_OUT="$(build-musl-static/src/timg --version)"
-          echo "${VERSION_OUT}"
-          echo "${VERSION_OUT}" | grep -q "Turbo JPEG"
-          echo "${VERSION_OUT}" | grep -q "Video decoding"
+          if [ "${{ matrix.arch }}" = "x86_64" ]; then
+            VERSION_OUT="$(build-musl-static/src/timg --version)"
+            echo "${VERSION_OUT}"
+            echo "${VERSION_OUT}" | grep -q "Turbo JPEG"
+            echo "${VERSION_OUT}" | grep -q "Video decoding"
+          else
+            file build-musl-static/src/timg
+          fi
 
       - name: Set artifact names
         id: vars
@@ -55,7 +79,7 @@ jobs:
             fi
           fi
           VERSION="$(echo "${VERSION}" | sed 's#[^A-Za-z0-9._-]#-#g')"
-          BASENAME="timg-${VERSION}-linux-x86_64-musl-static"
+          BASENAME="timg-${VERSION}-linux-${{ matrix.arch }}-musl-static"
           echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
           echo "basename=${BASENAME}" >> "${GITHUB_OUTPUT}"
 
@@ -79,7 +103,7 @@ jobs:
           sha256sum \
             "${{ steps.vars.outputs.basename }}.tar.gz" \
             "${{ steps.vars.outputs.basename }}.zip" \
-            > SHA256SUMS
+            > "${{ steps.vars.outputs.basename }}-SHA256SUMS"
 
       - name: Upload workflow artifacts
         uses: actions/upload-artifact@v4
@@ -88,13 +112,24 @@ jobs:
           path: |
             ${{ steps.vars.outputs.basename }}.tar.gz
             ${{ steps.vars.outputs.basename }}.zip
-            SHA256SUMS
+            ${{ steps.vars.outputs.basename }}-SHA256SUMS
 
-      - name: Publish GitHub release assets
-        if: startsWith(github.ref, 'refs/tags/v')
+  release:
+    needs: build-musl-static
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    name: Publish Release
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            ${{ steps.vars.outputs.basename }}.tar.gz
-            ${{ steps.vars.outputs.basename }}.zip
-            SHA256SUMS
+            artifacts/*.tar.gz
+            artifacts/*.zip
+            artifacts/*-SHA256SUMS

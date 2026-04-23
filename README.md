@@ -5,10 +5,30 @@ Terminal Image and Video Viewer
 ===============================
 
 [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://github.com/hzeller/timg/blob/main/LICENSE) &nbsp;
-[![Ubuntu Build](../../workflows/CI/badge.svg)](../../actions/workflows/ubuntu.yml)
-[![macOS Build](../../workflows/macOS%20Build/badge.svg)](../../actions/workflows/macos.yml)
-[![macOS Brew Building HEAD](../../workflows/macOS%20Brew%20Building%20HEAD/badge.svg)](../../actions/workflows/macos-brew.yml)
+[![CI](https://github.com/Migelo/timg/actions/workflows/ubuntu.yml/badge.svg)](https://github.com/Migelo/timg/actions/workflows/ubuntu.yml)
+[![Release musl static](https://github.com/Migelo/timg/actions/workflows/release-musl-static.yml/badge.svg)](https://github.com/Migelo/timg/actions/workflows/release-musl-static.yml)
 
+> **This is the [Migelo/timg](https://github.com/Migelo/timg) fork** of
+> [hzeller/timg](https://github.com/hzeller/timg). It adds **portable,
+> fully-static Linux binaries** (musl) with video & JPEG support — download
+> a single file and run it on any Linux distro, no dependencies needed.
+
+### Quick install (Linux x86_64)
+
+```bash
+# Download the latest static binary
+curl -fsSL https://github.com/Migelo/timg/releases/latest/download/timg-main-linux-x86_64-musl-static.tar.gz \
+  | tar xz --strip-components=1 -C /usr/local/bin/ timg-main-linux-x86_64-musl-static/timg
+
+# Verify it works
+timg --version
+```
+
+Or grab `.tar.gz` / `.zip` from the
+[Releases page](https://github.com/Migelo/timg/releases).
+SHA256 checksums are included with every release.
+
+---
 
 ### https://timg.sh/
 

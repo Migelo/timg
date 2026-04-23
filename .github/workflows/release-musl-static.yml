@@ -2,6 +2,16 @@ name: Release musl static
 
 on:
   push:
+    branches: [ main ]
+    paths-ignore:
+      - '*.md'
+      - 'LICENSE'
+      - 'img/**'
+      - 'man/**'
+      - '.clang-format'
+      - '.editorconfig'
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       ref:

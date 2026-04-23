@@ -1,5 +1,9 @@
 name: CI
 on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -92,9 +96,6 @@ jobs:
       release_tag: ${{ steps.do_tag.outputs.RELEASE_TAG }}
 
     steps:
-    - name: 📥 Download artifacts
-      uses: actions/download-artifact@v4.1.8
-
     - uses: actions/checkout@v4
       with:
        fetch-depth: 0
@@ -188,16 +189,21 @@ jobs:
 
 
   Release:
-    needs: [ AppImageBuild ]
-    if: needs.TagIfNeeded.RELEASE_TAG != ''
+    needs: [ TagIfNeeded, AppImageBuild ]
+    if: needs.TagIfNeeded.outputs.release_tag != ''
     runs-on: ubuntu-latest
     name: Create Release
+    permissions:
+      contents: write
     steps:
-      - name: 🎉 Release If Tagged
-        uses: svenstaro/upload-release-action@v2
+      - name: 📥 Download AppImage artifact
+        uses: actions/download-artifact@v4
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: artifact/timg-*.AppImage
-          tag: ${{ needs.TagIfNeeded.RELEASE_TAG }}
-          overwrite: true
-          file_glob: true
+          path: artifact
+          pattern: "timg-*-x86_64.AppImage"
+          merge-multiple: true
+      - name: 🎉 Release If Tagged
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.TagIfNeeded.outputs.release_tag }}
+          files: artifact/timg-*.AppImage

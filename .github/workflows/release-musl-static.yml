@@ -106,7 +106,7 @@ jobs:
             > "${{ steps.vars.outputs.basename }}-SHA256SUMS"
 
       - name: Upload workflow artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.vars.outputs.basename }}
           path: |
@@ -121,7 +121,7 @@ jobs:
     name: Publish Release
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
           merge-multiple: true

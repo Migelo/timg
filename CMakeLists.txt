@@ -26,6 +26,13 @@ option(TIMG_VERSION_FROM_GIT "Get the program version from the git repository" O
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
+# CMake's platform modules reset CMAKE_FIND_LIBRARY_SUFFIXES after the
+# toolchain file ran, so re-assert static-only lookups here; otherwise
+# pkg-config discovered libraries resolve to .so and break -static links.
+if(PKG_CONFIG_USE_STATIC_LIBS)
+  set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+endif()
+
 include(FindPkgConfig)
 include(GNUInstallDirs)
 

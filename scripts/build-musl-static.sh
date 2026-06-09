@@ -91,7 +91,9 @@ else
     sh -euxc '
       APK_PKGS="build-base cmake pkgconf git libdeflate-dev libdeflate-static"
       if [ "'"${WITH_VIDEO}"'" = "1" ]; then
-        APK_PKGS="${APK_PKGS} nasm yasm"
+        # linux-headers: FFmpeg only enables the v4l2 input device if
+        # linux/videodev2.h is present at configure time.
+        APK_PKGS="${APK_PKGS} nasm yasm linux-headers"
       fi
       if [ "${TURBOJPEG_MODE}" != "off" ] && [ "${TURBOJPEG_MODE}" != "OFF" ]; then
         APK_PKGS="${APK_PKGS} autoconf automake gettext gettext-dev libtool libjpeg-turbo-dev libjpeg-turbo-static libexif-dev"
@@ -195,7 +197,11 @@ else
         git clone --depth=1 --branch n6.1.1 https://github.com/FFmpeg/FFmpeg.git /tmp/ffmpeg-src
         cd /tmp/ffmpeg-src
         if [ "'"${WITH_VIDEO_DEVICE}"'" = "1" ]; then
-          VIDEO_DEVICE_ARG="--enable-avdevice"
+          # --disable-autodetect also disables v4l2-m2m, and FFmpeg only
+          # probes linux/videodev2.h (needed by the v4l2 indev) when
+          # v4l2-m2m is enabled. Request both explicitly so configure
+          # fails loudly instead of silently dropping device input.
+          VIDEO_DEVICE_ARG="--enable-avdevice --enable-v4l2-m2m --enable-indev=v4l2"
         else
           VIDEO_DEVICE_ARG="--disable-avdevice"
         fi
@@ -211,6 +217,14 @@ else
           --disable-avfilter \
           --disable-autodetect \
           ${VIDEO_DEVICE_ARG}
+        if [ "'"${WITH_VIDEO_DEVICE}"'" = "1" ]; then
+          if ! grep -q "^CONFIG_V4L2_INDEV=yes" ffbuild/config.mak; then
+            echo "FFmpeg configure did not enable the v4l2 input device;" >&2
+            echo "video device support would be silently broken (is linux-headers installed?)." >&2
+            exit 2
+          fi
+          echo "FFmpeg v4l2 input device enabled."
+        fi
         make -j"$(getconf _NPROCESSORS_ONLN)"
         make install
         cd /src

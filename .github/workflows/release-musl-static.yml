@@ -55,6 +55,7 @@ jobs:
           TURBOJPEG_MODE=on \
           WITH_VIDEO=1 \
           WITH_VIDEO_DEVICE=1 \
+          WITH_PDF=1 \
             ./scripts/build-musl-static.sh
           test -x build-musl-static/src/timg
           if [ "${{ matrix.arch }}" = "x86_64" ]; then
@@ -62,6 +63,7 @@ jobs:
             echo "${VERSION_OUT}"
             echo "${VERSION_OUT}" | grep -q "Turbo JPEG"
             echo "${VERSION_OUT}" | grep -q "Video decoding"
+            echo "${VERSION_OUT}" | grep -q "PDF rendering with poppler"
           else
             file build-musl-static/src/timg
           fi

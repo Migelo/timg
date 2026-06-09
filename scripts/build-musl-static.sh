@@ -8,6 +8,8 @@ WITH_VIDEO_DEVICE="${WITH_VIDEO_DEVICE:-0}"
 FFMPEG_STATIC_PREFIX="${FFMPEG_STATIC_PREFIX:-/opt/ffmpeg-static}"
 TURBOJPEG_MODE="${TURBOJPEG_MODE:-auto}"
 TURBOJPEG_STATIC_PREFIX="${TURBOJPEG_STATIC_PREFIX:-/opt/turbojpeg-static}"
+WITH_PDF="${WITH_PDF:-0}"
+PDF_STATIC_PREFIX="${PDF_STATIC_PREFIX:-/opt/pdf-static}"
 
 # Keep this build mostly minimal to avoid pulling many static third-party libraries.
 CMAKE_OPTS=(
@@ -16,10 +18,15 @@ CMAKE_OPTS=(
   -DWITH_OPENSLIDE_SUPPORT=Off
   -DWITH_GRAPHICSMAGICK=Off
   -DWITH_RSVG=Off
-  -DWITH_POPPLER=Off
   -DWITH_LIBSIXEL=Off
   -DWITH_STB_IMAGE=On
 )
+
+if [ "${WITH_PDF}" = "1" ]; then
+  CMAKE_OPTS+=(-DWITH_POPPLER=On)
+else
+  CMAKE_OPTS+=(-DWITH_POPPLER=Off)
+fi
 
 if [ "${WITH_VIDEO}" = "1" ]; then
   CMAKE_OPTS+=(-DWITH_VIDEO_DECODING=On)
@@ -70,6 +77,13 @@ if [ -z "${DOCKER_PLATFORM}" ] && command -v x86_64-linux-musl-g++ >/dev/null 2>
       ;;
   esac
 
+  if [ "${WITH_PDF}" = "1" ]; then
+    # Expects a prebuilt static poppler/cairo stack at PDF_STATIC_PREFIX
+    # (the Alpine Docker path below builds one automatically).
+    export PKG_CONFIG="pkg-config --static"
+    export PKG_CONFIG_PATH="${PDF_STATIC_PREFIX}/lib/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}"
+  fi
+
   echo "Building with local musl toolchain into ${BUILD_DIR}"
   rm -rf "${BUILD_DIR}"
   cmake -S "${ROOT_DIR}" -B "${BUILD_DIR}" "${CMAKE_OPTS[@]}" \
@@ -85,6 +99,8 @@ else
     -e HOST_GID="$(id -g)" \
     -e TURBOJPEG_MODE="${TURBOJPEG_MODE}" \
     -e TURBOJPEG_STATIC_PREFIX="${TURBOJPEG_STATIC_PREFIX}" \
+    -e WITH_PDF="${WITH_PDF}" \
+    -e PDF_STATIC_PREFIX="${PDF_STATIC_PREFIX}" \
     -v "${ROOT_DIR}":/src \
     -w /src \
     alpine:3.20 \
@@ -94,6 +110,15 @@ else
         # linux-headers: FFmpeg only enables the v4l2 input device if
         # linux/videodev2.h is present at configure time.
         APK_PKGS="${APK_PKGS} nasm yasm linux-headers"
+      fi
+      if [ "${WITH_PDF}" = "1" ]; then
+        APK_PKGS="${APK_PKGS} meson samurai xz glib-dev glib-static"
+        APK_PKGS="${APK_PKGS} pixman-dev pixman-static freetype-dev freetype-static"
+        APK_PKGS="${APK_PKGS} fontconfig-dev fontconfig-static expat-dev expat-static"
+        APK_PKGS="${APK_PKGS} libpng-dev libpng-static zlib-dev zlib-static"
+        APK_PKGS="${APK_PKGS} brotli-static bzip2-static pcre2-dev libffi-dev"
+        APK_PKGS="${APK_PKGS} gettext-static util-linux-dev util-linux-static libeconf-dev"
+        APK_PKGS="${APK_PKGS} libjpeg-turbo-dev libjpeg-turbo-static"
       fi
       if [ "${TURBOJPEG_MODE}" != "off" ] && [ "${TURBOJPEG_MODE}" != "OFF" ]; then
         APK_PKGS="${APK_PKGS} autoconf automake gettext gettext-dev libtool libjpeg-turbo-dev libjpeg-turbo-static libexif-dev"
@@ -244,6 +269,71 @@ else
           echo "Missing static FFmpeg library: ${FFMPEG_PREFIX}/lib/libavdevice.a" >&2
           exit 2
         fi
+      fi
+
+      if [ "${WITH_PDF}" = "1" ]; then
+        PDF_PREFIX="${PDF_STATIC_PREFIX}"
+        rm -rf "${PDF_PREFIX}" /tmp/cairo-src /tmp/cairo-build /tmp/poppler-src /tmp/poppler-build
+        mkdir -p /tmp/cairo-src /tmp/poppler-src
+
+        # Cairo without the X11 backends: Alpine has no static X libraries,
+        # and its cairo-static drags them into the closure.
+        wget -qO- https://cairographics.org/releases/cairo-1.18.4.tar.xz \
+          | tar xJ -C /tmp/cairo-src --strip-components=1
+        meson setup /tmp/cairo-build /tmp/cairo-src \
+          --default-library=static \
+          --prefix="${PDF_PREFIX}" --libdir=lib \
+          -Dxlib=disabled -Dxcb=disabled -Dxlib-xcb=disabled \
+          -Dquartz=disabled -Ddwrite=disabled -Dglib=disabled \
+          -Dspectre=disabled -Dsymbol-lookup=disabled -Dtests=disabled \
+          -Dfontconfig=enabled -Dfreetype=enabled -Dpng=enabled -Dzlib=enabled
+        ninja -C /tmp/cairo-build -j"$(getconf _NPROCESSORS_ONLN)"
+        ninja -C /tmp/cairo-build install
+
+        wget -qO- https://poppler.freedesktop.org/poppler-24.02.0.tar.xz \
+          | tar xJ -C /tmp/poppler-src --strip-components=1
+        PKG_CONFIG_PATH="${PDF_PREFIX}/lib/pkgconfig" \
+          cmake -S /tmp/poppler-src -B /tmp/poppler-build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="${PDF_PREFIX}" \
+            -DCMAKE_INSTALL_LIBDIR=lib \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DENABLE_GLIB=ON \
+            -DENABLE_QT5=OFF -DENABLE_QT6=OFF -DENABLE_CPP=OFF \
+            -DENABLE_UTILS=OFF -DENABLE_BOOST=OFF \
+            -DENABLE_LIBOPENJPEG=none -DENABLE_DCTDECODER=libjpeg \
+            -DENABLE_LCMS=OFF -DENABLE_LIBCURL=OFF -DENABLE_LIBTIFF=OFF \
+            -DENABLE_NSS3=OFF -DENABLE_GPGME=OFF \
+            -DENABLE_GOBJECT_INTROSPECTION=OFF \
+            -DBUILD_GTK_TESTS=OFF -DBUILD_MANUAL_TESTS=OFF \
+            -DRUN_GPERF_IF_PRESENT=OFF
+        cmake --build /tmp/poppler-build -j"$(getconf _NPROCESSORS_ONLN)"
+        cmake --install /tmp/poppler-build
+
+        for lib in \
+          "${PDF_PREFIX}/lib/libcairo.a" \
+          "${PDF_PREFIX}/lib/libpoppler.a" \
+          "${PDF_PREFIX}/lib/libpoppler-glib.a"; do
+          if [ ! -f "${lib}" ]; then
+            echo "Missing static PDF library: ${lib}" >&2
+            exit 2
+          fi
+        done
+
+        # Upstream poppler .pc files do not declare the private static
+        # link closure; without these the final -static link underlinks.
+        printf "Requires.private: libjpeg freetype2 fontconfig zlib\n" \
+          >> "${PDF_PREFIX}/lib/pkgconfig/poppler.pc"
+        sed -i "s/^Requires.private: poppler = .*/& gio-2.0/" \
+          "${PDF_PREFIX}/lib/pkgconfig/poppler-glib.pc"
+        # Alpine blkid.pc (pulled in via gio -> mount) misses libeconf.
+        grep -q "econf" /usr/lib/pkgconfig/blkid.pc \
+          || printf "Libs.private: -leconf\n" >> /usr/lib/pkgconfig/blkid.pc
+
+        # Make timg final link resolve the full static closure of
+        # poppler-glib/cairo through pkg-config.
+        export PKG_CONFIG="pkg-config --static"
+        export PKG_CONFIG_PATH="${PDF_PREFIX}/lib/pkgconfig"
       fi
       rm -rf /src/build-musl-static
       if [ -n "${CMAKE_PREFIX_PATH_VALUE}" ]; then

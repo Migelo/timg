@@ -203,7 +203,7 @@ jobs:
           pattern: "timg-*-x86_64.AppImage"
           merge-multiple: true
       - name: 🎉 Release If Tagged
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.TagIfNeeded.outputs.release_tag }}
           files: artifact/timg-*.AppImage

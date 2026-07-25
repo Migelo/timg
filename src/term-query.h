@@ -33,7 +33,7 @@ TermSizeResult DetermineTermSize();
 
 // Attempt to determine the background color of current termninal.
 // Returns static string if successful or nullptr if not.
-const char* QueryBackgroundColor();
+const char *QueryBackgroundColor();
 
 enum class GraphicsProtocol {
     kNone,

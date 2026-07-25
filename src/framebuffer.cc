@@ -27,7 +27,7 @@ namespace timg {
 rgba_t rgba_t::ParseColor(const char *color) {
     if (!color) return {0, 0, 0, 0};
 
-        // If it is a named color, convert it first to its #rrggbb string.
+    // If it is a named color, convert it first to its #rrggbb string.
 #include "html-colors.inc"
     for (const auto &c : html_colors) {
         if (strcasecmp(color, c.name) == 0) {

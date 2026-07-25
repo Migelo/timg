@@ -22,6 +22,6 @@ pkgs.mkShell {
 
        openslide
        pandoc
-       llvmPackages_22.clang-tools  # clang-format
+       llvmPackages_21.clang-tools  # clang-format
     ];
 }

@@ -17,3 +17,8 @@ ContinuationIndentWidth: 4
 IndentAccessModifiers: false
 IndentCaseLabels: false
 IndentWidth: 4
+
+# Make sure pointer alignment is like C/C++ intends.
+DerivePointerAlignment: false
+PointerAlignment: Right
+ReferenceAlignment: Right

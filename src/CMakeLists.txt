@@ -79,9 +79,16 @@ if(WITH_TURBOJPEG)
   if (JCONFIG_H_AVAILABLE)
     target_compile_definitions(timg PUBLIC HAVE_JCONFIG_H)
   endif()
-  target_link_libraries(timg
-    PkgConfig::TURBOJPEG
-    PkgConfig::EXIF)
+  if(TURBOJPEG_PKGCONFIG_FOUND)
+    target_link_libraries(timg PkgConfig::TURBOJPEG)
+  else()
+    target_link_libraries(timg ${TURBOJPEG_LIBRARY})
+  endif()
+  if(EXIF_PKGCONFIG_FOUND)
+    target_link_libraries(timg PkgConfig::EXIF)
+  else()
+    target_link_libraries(timg ${EXIF_LIBRARY})
+  endif()
 endif()
 
 if(WITH_OPENSLIDE_SUPPORT)
@@ -93,12 +100,29 @@ endif()
 if(WITH_VIDEO_DECODING)
   target_sources(timg PUBLIC video-source.h video-source.cc)
   target_compile_definitions(timg PUBLIC WITH_TIMG_VIDEO)
-  target_link_libraries(timg
-    PkgConfig::LIBAV
-    PkgConfig::AVUTIL
-    PkgConfig::SWSCALE)
+  if(NOT LIBAV_PKGCONFIG_FOUND)
+    target_include_directories(timg PRIVATE ${LIBAV_INCLUDE_DIR})
+  endif()
+  if(LIBAV_PKGCONFIG_FOUND)
+    target_link_libraries(timg
+      PkgConfig::LIBAV
+      PkgConfig::AVUTIL
+      PkgConfig::SWSCALE
+      PkgConfig::SWRESAMPLE)
+  else()
+    target_link_libraries(timg
+      ${LIBAVCODEC_LIBRARY}
+      ${LIBAVUTIL_LIBRARY}
+      ${LIBAVFORMAT_LIBRARY}
+      ${SWSCALE_LIBRARY}
+      ${SWRESAMPLE_LIBRARY})
+  endif()
   if (WITH_VIDEO_DEVICE)
-    target_link_libraries(timg PkgConfig::LIBAV_DEVICE)
+    if(LIBAV_DEVICE_PKGCONFIG_FOUND)
+      target_link_libraries(timg PkgConfig::LIBAV_DEVICE)
+    else()
+      target_link_libraries(timg ${LIBAVDEVICE_LIBRARY})
+    endif()
     add_definitions(-DHAVE_AVDEVICE)
   endif()
   set(SHOULD_SCALE_SWS ON)  # we link it anyway
@@ -119,9 +143,15 @@ endif()
 
 # TODO: for scaling, there is also zimg to explore
 if(SHOULD_SCALE_SWS)
-  target_link_libraries(timg
-    PkgConfig::AVUTIL
-    PkgConfig::SWSCALE)
+  if(AVUTIL_PKGCONFIG_FOUND AND SWSCALE_PKGCONFIG_FOUND)
+    target_link_libraries(timg
+      PkgConfig::AVUTIL
+      PkgConfig::SWSCALE)
+  else()
+    target_link_libraries(timg
+      ${LIBAVUTIL_LIBRARY}
+      ${SWSCALE_LIBRARY})
+  endif()
   target_compile_definitions(timg PUBLIC WITH_TIMG_SWS_RESIZE)
 else()
   CHECK_INCLUDE_FILE_CXX(stb/stb_image_resize2.h HAVE_SYSTEM_STB_RESIZE2)

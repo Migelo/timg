@@ -3,15 +3,18 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="${BUILD_DIR:-${ROOT_DIR}/build-musl-static}"
-WITH_VIDEO="${WITH_VIDEO:-0}"
-WITH_VIDEO_DEVICE="${WITH_VIDEO_DEVICE:-0}"
+WITH_VIDEO="${WITH_VIDEO:-1}"
+WITH_VIDEO_DEVICE="${WITH_VIDEO_DEVICE:-1}"
 FFMPEG_STATIC_PREFIX="${FFMPEG_STATIC_PREFIX:-/opt/ffmpeg-static}"
 TURBOJPEG_MODE="${TURBOJPEG_MODE:-auto}"
 TURBOJPEG_STATIC_PREFIX="${TURBOJPEG_STATIC_PREFIX:-/opt/turbojpeg-static}"
-WITH_PDF="${WITH_PDF:-0}"
+WITH_PDF="${WITH_PDF:-1}"
 PDF_STATIC_PREFIX="${PDF_STATIC_PREFIX:-/opt/pdf-static}"
 
-# Keep this build mostly minimal to avoid pulling many static third-party libraries.
+# GraphicsMagick, librsvg, OpenSlide and libsixel are kept off because they
+# have no convenient fully-static builds. Video (FFmpeg) and PDF (poppler/
+# cairo) are built from source below; both default on, disable with
+# WITH_VIDEO=0 / WITH_PDF=0.
 CMAKE_OPTS=(
   -DCMAKE_BUILD_TYPE=Release
   -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/musl-static-minimal.cmake

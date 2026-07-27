@@ -12,6 +12,15 @@ on:
       - '.editorconfig'
     tags:
       - 'v*'
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - '*.md'
+      - 'LICENSE'
+      - 'img/**'
+      - 'man/**'
+      - '.clang-format'
+      - '.editorconfig'
   workflow_dispatch:
     inputs:
       ref:
@@ -25,14 +34,24 @@ permissions:
 jobs:
   build-musl-static:
     runs-on: ubuntu-24.04
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: x86_64
-            docker_platform: linux/amd64
-          - arch: aarch64
-            docker_platform: linux/arm64
+strategy:
+  fail-fast: false
+  matrix:
+    arch: [x86_64, aarch64]
+
+    is_pr:
+      - ${{ github.event_name == 'pull_request' }}
+
+    include:
+      - arch: x86_64
+        docker_platform: linux/amd64
+
+      - arch: aarch64
+        docker_platform: linux/arm64
+
+    exclude:
+      - arch: aarch64
+        is_pr: true
 
     name: Build ${{ matrix.arch }}
 

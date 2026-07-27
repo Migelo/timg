@@ -613,10 +613,10 @@ included to do this in a reproducible way:
 ./scripts/build-musl-static.sh
 ```
 
-Enable video decoding in the static build:
+Video decoding is enabled by default. To build without it:
 
 ```bash
-WITH_VIDEO=1 ./scripts/build-musl-static.sh
+WITH_VIDEO=0 ./scripts/build-musl-static.sh
 ```
 
 Control turbojpeg mode:
@@ -637,15 +637,21 @@ What this does:
   (`WITH_STB_IMAGE=On`).
 * `TURBOJPEG_MODE=auto` (default) enables optimized JPEG decoding when static
   `libturbojpeg.a` and `libexif.a` are available.
-* Disables GraphicsMagick, librsvg, poppler, openslide and libsixel to avoid
+* Disables GraphicsMagick, librsvg, openslide and libsixel to avoid
   requiring many static third-party libraries.
-* Video decoding is off by default; enable it with `WITH_VIDEO=1`.
-* Optional video-device support can be enabled with `WITH_VIDEO_DEVICE=1`
-  (requires `WITH_VIDEO=1`).
+* Video decoding is on by default; disable it with `WITH_VIDEO=0`.
+* Optional video-device support is on by default; disable it with
+  `WITH_VIDEO_DEVICE=0` (only meaningful with `WITH_VIDEO=1`).
+* PDF rendering via poppler/cairo is on by default; disable it with
+  `WITH_PDF=0`.
 * If a local musl C++ toolchain is available (`x86_64-linux-musl-g++`), it is
   used directly. Otherwise, the script builds in an Alpine Docker container.
 * In the Alpine Docker fallback, `WITH_VIDEO=1` triggers a local static FFmpeg
   build from source (installed in `/opt/ffmpeg-static` inside the container).
+* In the Alpine Docker fallback, `WITH_PDF=1` (default) builds poppler and
+  cairo from source into `/opt/pdf-static`. With the local musl toolchain,
+  a prebuilt static poppler/cairo stack there is expected instead; set
+  `WITH_PDF=0` if unavailable.
 
 Resulting binary:
 

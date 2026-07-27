@@ -613,6 +613,13 @@ included to do this in a reproducible way:
 ./scripts/build-musl-static.sh
 ```
 
+To force building in an Alpine Docker container (the default uses a local
+musl toolchain):
+
+```bash
+USE_DOCKER=1 ./scripts/build-musl-static.sh
+```
+
 Video decoding is enabled by default. To build without it:
 
 ```bash
@@ -644,14 +651,17 @@ What this does:
   `WITH_VIDEO_DEVICE=0` (only meaningful with `WITH_VIDEO=1`).
 * PDF rendering via poppler/cairo is on by default; disable it with
   `WITH_PDF=0`.
-* If a local musl C++ toolchain is available (`x86_64-linux-musl-g++`), it is
-  used directly. Otherwise, the script builds in an Alpine Docker container.
-* In the Alpine Docker fallback, `WITH_VIDEO=1` triggers a local static FFmpeg
+* By default (`USE_DOCKER=0`) the script builds with a local musl C++
+  toolchain (`x86_64-linux-musl-g++`), which must be on `PATH`. Set
+  `USE_DOCKER=1` to build in an Alpine Docker container instead.
+* Setting `DOCKER_PLATFORM` (e.g. `linux/arm64`) implies `USE_DOCKER=1`,
+  since cross-builds can only run in Docker.
+* In the Alpine Docker path, `WITH_VIDEO=1` triggers a local static FFmpeg
   build from source (installed in `/opt/ffmpeg-static` inside the container).
-* In the Alpine Docker fallback, `WITH_PDF=1` (default) builds poppler and
-  cairo from source into `/opt/pdf-static`. With the local musl toolchain,
-  a prebuilt static poppler/cairo stack there is expected instead; set
-  `WITH_PDF=0` if unavailable.
+* In the Alpine Docker path, `WITH_PDF=1` (default) builds poppler and
+  cairo from source into `/opt/pdf-static`. With the local musl toolchain
+  (`USE_DOCKER=0`), a prebuilt static poppler/cairo stack there is expected
+  instead; set `WITH_PDF=0` if unavailable.
 
 Resulting binary:
 

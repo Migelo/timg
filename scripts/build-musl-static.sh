@@ -10,6 +10,7 @@ TURBOJPEG_MODE="${TURBOJPEG_MODE:-auto}"
 TURBOJPEG_STATIC_PREFIX="${TURBOJPEG_STATIC_PREFIX:-/opt/turbojpeg-static}"
 WITH_PDF="${WITH_PDF:-1}"
 PDF_STATIC_PREFIX="${PDF_STATIC_PREFIX:-/opt/pdf-static}"
+USE_DOCKER="${USE_DOCKER:-0}"
 
 # GraphicsMagick, librsvg, OpenSlide and libsixel are kept off because they
 # have no convenient fully-static builds. Video (FFmpeg) and PDF (poppler/
@@ -44,13 +45,21 @@ else
 fi
 
 # Optional: set DOCKER_PLATFORM to cross-build (e.g. linux/arm64).
+# Cross-builds can only run in Docker (the local toolchain is x86_64-only),
+# so setting DOCKER_PLATFORM forces USE_DOCKER=1.
 DOCKER_PLATFORM="${DOCKER_PLATFORM:-}"
 DOCKER_PLATFORM_ARGS=()
 if [ -n "${DOCKER_PLATFORM}" ]; then
   DOCKER_PLATFORM_ARGS=(--platform "${DOCKER_PLATFORM}")
+  USE_DOCKER=1
 fi
 
-if [ -z "${DOCKER_PLATFORM}" ] && command -v x86_64-linux-musl-g++ >/dev/null 2>&1; then
+if [ "${USE_DOCKER}" != "1" ]; then
+  if ! command -v x86_64-linux-musl-g++ >/dev/null 2>&1; then
+    echo "USE_DOCKER is not set but x86_64-linux-musl-g++ is not on PATH." >&2
+    echo "Install a local musl C++ toolchain, or set USE_DOCKER=1 to build in Alpine Docker." >&2
+    exit 2
+  fi
   HAS_STATIC_TURBOJPEG=0
   if find /usr/lib /usr/local/lib -name libturbojpeg.a -print -quit 2>/dev/null | grep -q . \
     && find /usr/lib /usr/local/lib -name libexif.a -print -quit 2>/dev/null | grep -q .; then

@@ -104,26 +104,15 @@ jobs:
           echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
           echo "basename=${BASENAME}" >> "${GITHUB_OUTPUT}"
 
-      - name: Install packaging dependency
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y zip
-
       - name: Package artifacts
         run: |
           mkdir -p "dist/${{ steps.vars.outputs.basename }}"
           install -m 0755 build-musl-static/src/timg "dist/${{ steps.vars.outputs.basename }}/timg"
           tar -C dist -czf "${{ steps.vars.outputs.basename }}.tar.gz" "${{ steps.vars.outputs.basename }}"
-          (
-            cd dist
-            zip -r "../${{ steps.vars.outputs.basename }}.zip" "${{ steps.vars.outputs.basename }}"
-          )
 
       - name: Generate checksums
         run: |
-          sha256sum \
-            "${{ steps.vars.outputs.basename }}.tar.gz" \
-            "${{ steps.vars.outputs.basename }}.zip" \
+          sha256sum "${{ steps.vars.outputs.basename }}.tar.gz" \
             > "${{ steps.vars.outputs.basename }}-SHA256SUMS"
 
       - name: Upload workflow artifacts
@@ -132,7 +121,6 @@ jobs:
           name: ${{ steps.vars.outputs.basename }}
           path: |
             ${{ steps.vars.outputs.basename }}.tar.gz
-            ${{ steps.vars.outputs.basename }}.zip
             ${{ steps.vars.outputs.basename }}-SHA256SUMS
 
   release:
@@ -150,9 +138,8 @@ jobs:
           merge-multiple: true
 
       - name: Publish GitHub release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             artifacts/*.tar.gz
-            artifacts/*.zip
             artifacts/*-SHA256SUMS
